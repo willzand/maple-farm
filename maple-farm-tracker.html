@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🍁 MapleStory Farm Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg:#0d1117;--surface:#161b22;--surface2:#1c2330;
+    --border:rgba(139,197,68,0.2);--green:#8BC544;--green-dim:rgba(139,197,68,0.12);--green-glow:rgba(139,197,68,0.3);
+    --gold:#FFD700;--nx:#a78bfa;--orange:#fb923c;
+    --text:#e6edf3;--text-muted:#8b949e;--radius:10px;--danger:#f85149;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;min-height:100vh;}
+
+  .header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .header-title{font-size:17px;font-weight:600;color:var(--green);}
+  .header-sub{font-size:11px;color:var(--text-muted);margin-top:2px;}
+  .server-time{font-size:12px;color:var(--text-muted);text-align:right;}
+  .server-time strong{color:var(--green);font-size:16px;display:block;}
+
+  .char-bar{background:var(--surface2);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .char-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;}
+  .char-btns{display:flex;gap:6px;}
+  .char-btn{padding:6px 18px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;}
+  .char-btn:hover{border-color:var(--green-glow);color:var(--text);}
+  .char-btn.aw{background:rgba(139,197,68,.15);border-color:var(--green);color:var(--green);}
+  .char-btn.ao{background:rgba(251,146,60,.15);border-color:var(--orange);color:var(--orange);}
+  .char-btn.ab{background:rgba(139,197,68,.08);border-color:var(--border);color:var(--text-muted);border-style:dashed;}
+  .char-tag{font-size:11px;padding:3px 10px;border-radius:10px;font-weight:500;}
+  .ctw{background:rgba(139,197,68,.15);color:var(--green);}
+  .cto{background:rgba(251,146,60,.15);color:var(--orange);}
+
+  .main{padding:20px 24px;max-width:1100px;margin:0 auto;}
+  .tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);}
+  .tab{padding:8px 18px;font-size:13px;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s;}
+  .tab:hover{color:var(--text);}
+  .tab.active{color:var(--green);border-bottom-color:var(--green);}
+  .panel{display:none;}.panel.active{display:block;}
+
+  .date-row{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;}
+  .date-row label{font-size:12px;color:var(--text-muted);}
+  .date-row input[type=date]{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 12px;color:var(--text);font-size:13px;cursor:pointer;}
+  .date-row input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.7);cursor:pointer;}
+
+  .input-grid{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;display:grid;grid-template-columns:60px 1fr 1fr 90px;}
+  .igh{display:contents;}
+  .igh span{padding:9px 12px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;}
+  .igr{display:contents;}
+  .igr>*{padding:7px 12px;border-bottom:1px solid rgba(139,197,68,.06);}
+  .igr:last-child>*{border-bottom:none;}
+  .hlabel{font-weight:600;color:var(--text-muted);font-size:13px;background:var(--surface2);text-align:center;display:flex;align-items:center;justify-content:center;}
+  .hlabel.ah{color:var(--green);}
+  .igr input[type=number]{width:100%;background:transparent;border:none;border-bottom:1px solid transparent;color:var(--text);font-size:13px;padding:4px 0;transition:border-color .15s;}
+  .igr input[type=number]:focus{outline:none;border-bottom-color:var(--green);}
+  .igr input[type=number]::-webkit-inner-spin-button{opacity:.3;}
+  .sbtn{background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:11px;padding:4px 8px;cursor:pointer;transition:all .15s;white-space:nowrap;width:100%;}
+  .sbtn:hover{background:var(--green-dim);color:var(--green);border-color:var(--green-glow);}
+  .sbtn.saved{background:var(--green-dim);color:var(--green);border-color:var(--green-glow);}
+  .sbtn.saving{opacity:.4;pointer-events:none;}
+  .sbtn.error{background:rgba(248,81,73,.1);color:var(--danger);border-color:rgba(248,81,73,.35);}
+  .char-sep{grid-column:1/-1;padding:8px 12px;font-size:11px;font-weight:500;border-bottom:1px solid var(--border);}
+
+  .mrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px;}
+  .metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;}
+  .metric .lbl{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;}
+  .metric .val{font-size:21px;font-weight:600;}
+  .metric .sub{font-size:11px;color:var(--text-muted);margin-top:3px;}
+
+  .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;}
+  .chart-title{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;font-weight:500;}
+
+  .tcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px;}
+  .tcard table{width:100%;border-collapse:collapse;font-size:13px;}
+  .tcard th{padding:9px 14px;text-align:left;font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;background:var(--surface2);border-bottom:1px solid var(--border);}
+  .tcard td{padding:8px 14px;border-bottom:1px solid rgba(139,197,68,.05);}
+  .tcard tr:last-child td{border-bottom:none;}
+  .tcard tr:hover td{background:var(--green-dim);}
+  .tm{color:var(--gold);font-variant-numeric:tabular-nums;}
+  .tn{color:var(--nx);font-variant-numeric:tabular-nums;}
+  .th{color:var(--text-muted);font-size:12px;}
+  .td{color:var(--text-muted);font-size:12px;font-variant-numeric:tabular-nums;}
+
+  .cgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;}
+  .ccard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;}
+  .ccard .ch{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .ccard .cr{display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;}
+  .ccard .cr span:first-child{color:var(--text-muted);}
+
+  .hctrl{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+  .hctrl select{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 12px;color:var(--text);font-size:13px;cursor:pointer;}
+  .rbtn{background:var(--green-dim);border:1px solid var(--green-glow);border-radius:var(--radius);color:var(--green);padding:7px 16px;font-size:13px;cursor:pointer;font-weight:600;}
+  .rbtn:hover{background:rgba(139,197,68,.22);}
+
+  .toast-container{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:999;}
+  .toast{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;font-size:13px;display:flex;align-items:center;gap:8px;animation:sli .2s ease;max-width:300px;}
+  .toast.success{border-color:var(--green-glow);color:var(--green);}
+  .toast.error{border-color:rgba(248,81,73,.4);color:var(--danger);}
+  @keyframes sli{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
+  .loading{text-align:center;padding:40px;color:var(--text-muted);font-size:13px;}
+  .spin{display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spn .7s linear infinite;}
+  @keyframes spn{to{transform:rotate(360deg);}}
+  .nodata{text-align:center;padding:40px;color:var(--text-muted);font-size:13px;}
+  @media(max-width:600px){.main{padding:12px;}.header,.char-bar{padding:10px 14px;}.cgrid{grid-template-columns:1fr;}.input-grid{grid-template-columns:54px 1fr 1fr 76px;}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">🍁 MapleStory Farm Tracker</div>
+    <div class="header-sub">Bowman · Arcane Umbra</div>
+  </div>
+  <div class="server-time"><strong id="clock">--:--:--</strong><span id="clock-date"></span></div>
+</div>
+
+<div class="char-bar">
+  <span class="char-label">Character:</span>
+  <div class="char-btns">
+    <button class="char-btn aw" id="cb-wi11zand" onclick="switchChar('wi11zand')">🏹 Wi11zanD</button>
+    <button class="char-btn" id="cb-osaka" onclick="switchChar('osaka')">⚔️ Osaka</button>
+    <button class="char-btn ab" id="cb-both" onclick="switchChar('both')">📊 รวมทั้งคู่</button>
+  </div>
+  <span id="active-tag" class="char-tag ctw">Wi11zanD</span>
+</div>
+
+<div class="main">
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('input',this)">📝 กรอกยอด</div>
+    <div class="tab" onclick="switchTab('dashboard',this)">📊 วันนี้</div>
+    <div class="tab" onclick="switchTab('history',this)">📅 ประวัติ</div>
+    <div class="tab" onclick="switchTab('debug',this)">🔧 Debug</div>
+  </div>
+
+  <!-- INPUT -->
+  <div class="panel active" id="panel-input">
+    <div class="date-row">
+      <label>วันที่:</label>
+      <input type="date" id="input-date" onchange="buildRows()"/>
+      <span style="font-size:12px;color:var(--text-muted);">กรอก balance ปัจจุบัน — ระบบคำนวณส่วนต่างให้เอง</span>
+    </div>
+    <div class="input-grid">
+      <div class="igh"><span>ชม.</span><span>💰 Mesos Balance</span><span>💎 NX Balance</span><span></span></div>
+      <div id="hrows" style="display:contents;"></div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="panel" id="panel-dashboard">
+    <div id="dash-single">
+      <div class="mrow">
+        <div class="metric"><div class="lbl">💰 Mesos วันนี้</div><div class="val" style="color:var(--gold);" id="m-total">—</div><div class="sub" id="m-sub"></div></div>
+        <div class="metric"><div class="lbl">💎 NX วันนี้</div><div class="val" style="color:var(--nx);" id="nx-total">—</div></div>
+        <div class="metric"><div class="lbl">⏱ ชั่วโมงที่บันทึก</div><div class="val" style="color:var(--green);" id="hrs-logged">—</div><div class="sub" id="best-hr"></div></div>
+        <div class="metric"><div class="lbl">📊 เฉลี่ย/ชม Mesos</div><div class="val" style="color:var(--text);" id="m-avg">—</div></div>
+      </div>
+      <div class="chart-card"><div class="chart-title">Mesos รายชั่วโมง</div><div style="position:relative;height:210px;"><canvas id="chart-mesos" role="img" aria-label="กราฟ Mesos รายชั่วโมง">Mesos hourly</canvas></div></div>
+      <div class="chart-card"><div class="chart-title">NX รายชั่วโมง</div><div style="position:relative;height:150px;"><canvas id="chart-nx" role="img" aria-label="กราฟ NX รายชั่วโมง">NX hourly</canvas></div></div>
+      <div class="tcard"><table><thead><tr><th>ชม.</th><th>💰 Mesos ได้</th><th>💎 NX ได้</th><th>Mesos Balance</th><th>NX Balance</th></tr></thead><tbody id="today-tb"></tbody></table></div>
+    </div>
+
+    <div id="dash-both" style="display:none;">
+      <div class="cgrid">
+        <div class="ccard"><div class="ch"><span class="char-tag ctw">🏹 Wi11zanD</span></div>
+          <div class="cr"><span>💰 Mesos</span><span class="tm" id="bw-m">—</span></div>
+          <div class="cr"><span>💎 NX</span><span class="tn" id="bw-n">—</span></div>
+          <div class="cr"><span>⏱ ชั่วโมง</span><span style="color:var(--green);" id="bw-h">—</span></div>
+        </div>
+        <div class="ccard"><div class="ch"><span class="char-tag cto">⚔️ Osaka</span></div>
+          <div class="cr"><span>💰 Mesos</span><span class="tm" id="bo-m">—</span></div>
+          <div class="cr"><span>💎 NX</span><span class="tn" id="bo-n">—</span></div>
+          <div class="cr"><span>⏱ ชั่วโมง</span><span style="color:var(--orange);" id="bo-h">—</span></div>
+        </div>
+      </div>
+      <div class="mrow">
+        <div class="metric"><div class="lbl">💰 Mesos รวมทั้งคู่</div><div class="val" style="color:var(--gold);" id="bt-m">—</div></div>
+        <div class="metric"><div class="lbl">💎 NX รวมทั้งคู่</div><div class="val" style="color:var(--nx);" id="bt-n">—</div></div>
+      </div>
+      <div class="chart-card"><div class="chart-title">Mesos รายชั่วโมง — เปรียบเทียบ</div><div style="position:relative;height:220px;"><canvas id="chart-both" role="img" aria-label="เปรียบเทียบ Mesos รายชั่วโมง">comparison</canvas></div></div>
+    </div>
+
+    <div id="dash-load" class="loading" style="display:none;"><div class="spin"></div><br><br>กำลังโหลด...</div>
+    <div id="dash-nd" class="nodata" style="display:none;">ยังไม่มีข้อมูลวันนี้</div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="panel" id="panel-history">
+    <div class="hctrl">
+      <select id="hist-days" onchange="loadHistory()">
+        <option value="7">7 วันล่าสุด</option>
+        <option value="14">14 วันล่าสุด</option>
+        <option value="30">30 วันล่าสุด</option>
+      </select>
+      <button class="rbtn" onclick="loadHistory()">🔄 รีเฟรช</button>
+    </div>
+    <div class="chart-card"><div class="chart-title">Mesos รายวัน</div><div style="position:relative;height:210px;"><canvas id="chart-daily" role="img" aria-label="กราฟ Mesos รายวัน">daily mesos</canvas></div></div>
+    <div class="tcard"><table><thead><tr><th>วันที่</th><th>💰 Mesos รวม</th><th>💎 NX รวม</th><th>ชั่วโมง</th></tr></thead><tbody id="hist-tb"></tbody></table></div>
+    <div id="hist-load" class="loading" style="display:none;"><div class="spin"></div><br><br>กำลังโหลด...</div>
+    <div id="hist-nd" class="nodata" style="display:none;">ยังไม่มีข้อมูล</div>
+  </div>
+  <!-- DEBUG -->
+  <div class="panel" id="panel-debug">
+    <div style="margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="rbtn" onclick="runDebug()">🔍 ทดสอบ API เดี๋ยวนี้</button>
+      <input type="date" id="debug-date" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 12px;color:var(--text);font-size:13px;" />
+      <select id="debug-char" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 12px;color:var(--text);font-size:13px;">
+        <option value="wi11zand">Wi11zanD</option>
+        <option value="osaka">Osaka</option>
+      </select>
+    </div>
+    <div id="debug-out" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-family:monospace;font-size:12px;color:var(--text-muted);white-space:pre-wrap;min-height:200px;max-height:500px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<script>
+const SCRIPT_URL='https://script.google.com/macros/s/AKfycbwRKtAXCXJrNXWxJOU0MuscRiY6O5giP3BNjgr4xvtcIkmPeW-QX8KOFUWL-DrbL_G1QA/exec';
+const HOURS=Array.from({length:16},(_,i)=>i+7);
+let curChar='wi11zand';
+let CM=null,CN=null,CD=null,CB=null;
+
+function init(){
+  setupClock();
+  document.getElementById('input-date').value=dateStr(new Date());
+  buildRows();
+}
+
+function setupClock(){
+  function tick(){
+    const n=new Date();
+    document.getElementById('clock').textContent=[n.getHours(),n.getMinutes(),n.getSeconds()].map(x=>String(x).padStart(2,'0')).join(':');
+    document.getElementById('clock-date').textContent=n.toLocaleDateString('th-TH',{weekday:'short',day:'numeric',month:'short',year:'2-digit'});
+  }
+  tick();setInterval(tick,1000);
+}
+
+function dateStr(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function today(){return dateStr(new Date());}
+
+function switchChar(c){
+  curChar=c;
+  ['wi11zand','osaka','both'].forEach(x=>{
+    const b=document.getElementById('cb-'+x);
+    b.className='char-btn'+(x==='both'?' ab':'');
+    if(x===c){
+      if(c==='wi11zand')b.className='char-btn aw';
+      else if(c==='osaka')b.className='char-btn ao';
+      else b.className='char-btn aw';
+    }
+  });
+  const tag=document.getElementById('active-tag');
+  if(c==='wi11zand'){tag.className='char-tag ctw';tag.textContent='Wi11zanD';}
+  else if(c==='osaka'){tag.className='char-tag cto';tag.textContent='Osaka';}
+  else{tag.className='char-tag ctw';tag.textContent='ทั้งคู่';}
+  buildRows();
+  const ap=document.querySelector('.panel.active');
+  if(ap?.id==='panel-dashboard')loadDash();
+  if(ap?.id==='panel-history')loadHistory();
+}
+
+async function buildRows(){
+  const c=document.getElementById('hrows');
+  const curH=new Date().getHours();
+  const date=document.getElementById('input-date').value;
+  c.innerHTML='<div style="grid-column:1/-1;padding:12px;color:var(--text-muted);font-size:12px;">⏳ กำลังโหลดข้อมูล...</div>';
+  const chars=curChar==='both'?['wi11zand','osaka']:[curChar];
+
+  const existing={};
+  await Promise.all(chars.map(async char=>{
+    try{
+      const r=await apiFetch('getData',char,{date});
+      if(r.success&&r.rows) existing[char]=Object.fromEntries(r.rows.map(row=>[row.hour,row]));
+      else existing[char]={};
+    }catch(e){existing[char]={};}
+  }));
+
+  c.innerHTML='';
+  chars.forEach(char=>{
+    if(curChar==='both'){
+      const sep=document.createElement('div');
+      sep.className='char-sep';
+      sep.style.cssText=`grid-column:1/-1;background:var(--surface2);color:${char==='wi11zand'?'var(--green)':' var(--orange)'};`;
+      sep.textContent=char==='wi11zand'?'🏹 Wi11zanD':'⚔️ Osaka';
+      c.appendChild(sep);
+    }
+    HOURS.forEach(h=>{
+      const saved=(existing[char]||{})[h];
+      const isSaved=!!saved;
+      const r=document.createElement('div');
+      r.className='igr';
+      const emColor=saved&&saved.mesos_earned>0?'var(--gold)':saved&&saved.mesos_earned<0?'var(--danger)':' var(--text-muted)';
+      const enColor=saved&&saved.nx_earned>0?'var(--nx)':' var(--text-muted)';
+      const emTxt=isSaved?(saved.mesos_earned>0?'+':'')+fmt(saved.mesos_earned):''  ;
+      const enTxt=isSaved?(saved.nx_earned>0?'+':'')+fmt(saved.nx_earned):'';
+      r.innerHTML=`
+        <div class="hlabel ${h===curH?'ah':''}">${String(h).padStart(2,'0')}:00</div>
+        <div style="display:flex;flex-direction:column;gap:2px;justify-content:center;">
+          <input type="number" id="m-${char}-${h}" placeholder="Mesos balance" min="0" step="1"
+            ${isSaved?`value="${saved.mesos_balance}"`:''} onchange="cache('${char}',${h})"/>
+          ${isSaved?`<span style="font-size:10px;color:${emColor};">earned: ${emTxt}</span>`:''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px;justify-content:center;">
+          <input type="number" id="n-${char}-${h}" placeholder="NX balance" min="0" step="1"
+            ${isSaved?`value="${saved.nx_balance}"`:''} onchange="cache('${char}',${h})"/>
+          ${isSaved?`<span style="font-size:10px;color:${enColor};">earned: ${enTxt}</span>`:''}
+        </div>
+        <div style="display:flex;align-items:center;">
+          <button class="sbtn ${isSaved?'saved':''}" id="sb-${char}-${h}" onclick="saveH('${char}',${h})">${isSaved?'✅ Done':'💾 Save'}</button>
+        </div>`;
+      c.appendChild(r);
+    });
+  });
+  loadCache();
+}
+
+function cache(char,h){
+  const date=document.getElementById('input-date').value;
+  const m=document.getElementById(`m-${char}-${h}`)?.value;
+  const n=document.getElementById(`n-${char}-${h}`)?.value;
+  const k=`mc_${char}_${date}`;
+  const obj=JSON.parse(localStorage.getItem(k)||'{}');
+  obj[h]={m,n};localStorage.setItem(k,JSON.stringify(obj));
+}
+
+function loadCache(){
+  const date=document.getElementById('input-date').value;
+  ['wi11zand','osaka'].forEach(char=>{
+    const obj=JSON.parse(localStorage.getItem(`mc_${char}_${date}`)||'{}');
+    Object.entries(obj).forEach(([h,v])=>{
+      const mi=document.getElementById(`m-${char}-${h}`);
+      const ni=document.getElementById(`n-${char}-${h}`);
+      if(mi&&v.m)mi.value=v.m;
+      if(ni&&v.n)ni.value=v.n;
+    });
+  });
+}
+
+async function saveH(char,h){
+  const date=document.getElementById('input-date').value;
+  const mesos=parseFloat(document.getElementById(`m-${char}-${h}`)?.value);
+  const nx=parseFloat(document.getElementById(`n-${char}-${h}`)?.value);
+  if(isNaN(mesos)||isNaN(nx)){toast(`กรอก Mesos+NX ให้ครบก่อนนะครับ (${String(h).padStart(2,'0')}:00)`,'error');return;}
+  const btn=document.getElementById(`sb-${char}-${h}`);
+  btn.className='sbtn saving';btn.textContent='...';
+  try{
+    const res=await fetch(SCRIPT_URL,{method:'POST',redirect:'follow',body:JSON.stringify({date,hour:h,mesos_balance:mesos,nx_balance:nx,character:char}),headers:{'Content-Type':'text/plain'}});
+    const d=await res.json();
+    if(d.success){
+      btn.className='sbtn saved';btn.textContent='✅ Done';
+      const em=d.mesos_earned?`+${fmt(d.mesos_earned)} Mesos`:'';
+      const en=d.nx_earned?` +${fmt(d.nx_earned)} NX`:'';
+      toast(`[${char==='wi11zand'?'Wi11zanD':'Osaka'}] ${String(h).padStart(2,'0')}:00 ${em||'บันทึกแล้ว'}${en}`,'success');
+      // อัปเดต earned label ใน row
+      const emColor=d.mesos_earned>0?'var(--gold)':d.mesos_earned<0?'var(--danger)':'var(--text-muted)';
+      const enColor=d.nx_earned>0?'var(--nx)':'var(--text-muted)';
+      const emTxt=(d.mesos_earned>0?'+':'')+fmt(d.mesos_earned);
+      const enTxt=(d.nx_earned>0?'+':'')+fmt(d.nx_earned);
+      const mInput=g(`m-${char}-${h}`);
+      const nInput=g(`n-${char}-${h}`);
+      if(mInput){
+        mInput.style.borderBottom='1px solid var(--green-glow)';
+        let sp=mInput.parentNode.querySelector('span');
+        if(!sp){sp=document.createElement('span');mInput.parentNode.appendChild(sp);}
+        sp.style.cssText=`font-size:10px;color:${emColor};`;
+        sp.textContent=`earned: ${emTxt}`;
+      }
+      if(nInput){
+        nInput.style.borderBottom='1px solid var(--green-glow)';
+        let sp=nInput.parentNode.querySelector('span');
+        if(!sp){sp=document.createElement('span');nInput.parentNode.appendChild(sp);}
+        sp.style.cssText=`font-size:10px;color:${enColor};`;
+        sp.textContent=`earned: ${enTxt}`;
+      }
+    }else throw new Error(d.error||'error');
+  }catch(e){
+    btn.className='sbtn error';btn.textContent='❌';
+    toast('Error: '+e.message,'error');
+    setTimeout(()=>{btn.className='sbtn';btn.textContent='💾 Save';},3000);
+  }
+}
+
+async function loadDash(){
+  g('dash-single').style.display='none';g('dash-both').style.display='none';
+  g('dash-nd').style.display='none';g('dash-load').style.display='';
+  try{
+    if(curChar==='both'){
+      const[rw,ro]=await Promise.all([apiFetch('getData','wi11zand',{date:today()}),apiFetch('getData','osaka',{date:today()})]);
+      g('dash-load').style.display='none';g('dash-both').style.display='';
+      renderBoth(rw.rows||[],ro.rows||[]);
+    }else{
+      const r=await apiFetch('getData',curChar,{date:today()});
+      g('dash-load').style.display='none';
+      if(!r.rows?.length){g('dash-nd').style.display='';return;}
+      g('dash-single').style.display='';renderSingle(r.rows);
+    }
+  }catch(e){g('dash-load').style.display='none';g('dash-nd').style.display='';}
+}
+
+function renderSingle(rows){
+  const tM=rows.reduce((s,r)=>s+(r.mesos_earned||0),0);
+  const tN=rows.reduce((s,r)=>s+(r.nx_earned||0),0);
+  const hrs=rows.length;
+  const best=[...rows].sort((a,b)=>(b.mesos_earned||0)-(a.mesos_earned||0))[0];
+  g('m-total').textContent=fmt(tM);g('nx-total').textContent=fmt(tN);
+  g('hrs-logged').textContent=hrs+' ชม.';g('m-sub').textContent='';
+  g('best-hr').textContent=best?`ดีสุด ${String(best.hour).padStart(2,'0')}:00 → +${fmt(best.mesos_earned)} M`:'';
+  g('m-avg').textContent=hrs?fmt(Math.round(tM/hrs)):'—';
+  bar('chart-mesos',CM,rows.map(r=>`${String(r.hour).padStart(2,'0')}:00`),rows.map(r=>r.mesos_earned||0),'#FFD700','Mesos',r=>{CM=r;});
+  bar('chart-nx',CN,rows.map(r=>`${String(r.hour).padStart(2,'0')}:00`),rows.map(r=>r.nx_earned||0),'#a78bfa','NX',r=>{CN=r;});
+  g('today-tb').innerHTML=rows.map(r=>`<tr><td class="th">${String(r.hour).padStart(2,'0')}:00</td><td class="tm">${sgn(r.mesos_earned)}${fmt(r.mesos_earned||0)}</td><td class="tn">${sgn(r.nx_earned)}${fmt(r.nx_earned||0)}</td><td class="td">${fmt(r.mesos_balance||0)}</td><td class="td">${fmt(r.nx_balance||0)}</td></tr>`).join('');
+}
+
+function renderBoth(wR,oR){
+  const wM=wR.reduce((s,r)=>s+(r.mesos_earned||0),0),wN=wR.reduce((s,r)=>s+(r.nx_earned||0),0);
+  const oM=oR.reduce((s,r)=>s+(r.mesos_earned||0),0),oN=oR.reduce((s,r)=>s+(r.nx_earned||0),0);
+  g('bw-m').textContent=fmt(wM);g('bw-n').textContent=fmt(wN);g('bw-h').textContent=wR.length+' ชม.';
+  g('bo-m').textContent=fmt(oM);g('bo-n').textContent=fmt(oN);g('bo-h').textContent=oR.length+' ชม.';
+  g('bt-m').textContent=fmt(wM+oM);g('bt-n').textContent=fmt(wN+oN);
+  const allH=[...new Set([...wR,...oR].map(r=>r.hour))].sort((a,b)=>a-b);
+  const lbs=allH.map(h=>`${String(h).padStart(2,'0')}:00`);
+  const wMap=Object.fromEntries(wR.map(r=>[r.hour,r.mesos_earned||0]));
+  const oMap=Object.fromEntries(oR.map(r=>[r.hour,r.mesos_earned||0]));
+  if(CB)CB.destroy();
+  const ctx=g('chart-both')?.getContext('2d');
+  if(ctx)CB=new Chart(ctx,{type:'bar',data:{labels:lbs,datasets:[
+    {label:'Wi11zanD',data:allH.map(h=>wMap[h]||0),backgroundColor:'#8BC54499',borderColor:'#8BC544',borderWidth:1,borderRadius:3},
+    {label:'Osaka',data:allH.map(h=>oMap[h]||0),backgroundColor:'#fb923c99',borderColor:'#fb923c',borderWidth:1,borderRadius:3}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#8b949e',font:{size:11},boxWidth:12}}},scales:{x:{ticks:{color:'#8b949e',font:{size:11}},grid:{color:'rgba(139,197,68,.06)'}},y:{ticks:{color:'#8b949e',font:{size:11},callback:v=>fmtS(v)},grid:{color:'rgba(139,197,68,.06)'}}}}});
+}
+
+async function loadHistory(){
+  const days=g('hist-days').value;
+  g('hist-nd').style.display='none';g('hist-load').style.display='';
+  try{
+    if(curChar==='both'){
+      const[rw,ro]=await Promise.all([apiFetch('getSummary','wi11zand',{days}),apiFetch('getSummary','osaka',{days})]);
+      g('hist-load').style.display='none';renderHistBoth(rw.summary||[],ro.summary||[]);
+    }else{
+      const r=await apiFetch('getSummary',curChar,{days});
+      g('hist-load').style.display='none';
+      if(!r.summary?.length){g('hist-nd').style.display='';return;}
+      renderHist(r.summary);
+    }
+  }catch(e){g('hist-load').style.display='none';g('hist-nd').style.display='';}
+}
+
+function renderHist(sum){
+  const rev=[...sum].reverse();
+  bar('chart-daily',CD,rev.map(r=>r.date.slice(5)),rev.map(r=>r.mesos_total||0),'#8BC544','Mesos',r=>{CD=r;});
+  g('hist-tb').innerHTML=sum.map(r=>`<tr><td>${r.date}</td><td class="tm">${fmt(r.mesos_total||0)}</td><td class="tn">${fmt(r.nx_total||0)}</td><td class="td">${r.hours} ชม.</td></tr>`).join('');
+}
+
+function renderHistBoth(wS,oS){
+  const allD=[...new Set([...wS,...oS].map(r=>r.date))].sort().reverse();
+  const wMap=Object.fromEntries(wS.map(r=>[r.date,r]));
+  const oMap=Object.fromEntries(oS.map(r=>[r.date,r]));
+  const rev=[...allD].reverse();
+  if(CD)CD.destroy();
+  const ctx=g('chart-daily')?.getContext('2d');
+  if(ctx)CD=new Chart(ctx,{type:'bar',data:{labels:rev.map(d=>d.slice(5)),datasets:[
+    {label:'Wi11zanD',data:rev.map(d=>wMap[d]?.mesos_total||0),backgroundColor:'#8BC54499',borderColor:'#8BC544',borderWidth:1,borderRadius:3},
+    {label:'Osaka',data:rev.map(d=>oMap[d]?.mesos_total||0),backgroundColor:'#fb923c99',borderColor:'#fb923c',borderWidth:1,borderRadius:3}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#8b949e',font:{size:11},boxWidth:12}}},scales:{x:{ticks:{color:'#8b949e',font:{size:11}},grid:{color:'rgba(139,197,68,.06)'}},y:{ticks:{color:'#8b949e',font:{size:11},callback:v=>fmtS(v)},grid:{color:'rgba(139,197,68,.06)'}}}}});
+  g('hist-tb').innerHTML=allD.map(d=>{const w=wMap[d],o=oMap[d];
+    return `<tr><td>${d}</td><td class="tm">${fmt((w?.mesos_total||0)+(o?.mesos_total||0))} <span style="font-size:10px;color:var(--text-muted);">(W:${fmt(w?.mesos_total||0)} O:${fmt(o?.mesos_total||0)})</span></td><td class="tn">${fmt((w?.nx_total||0)+(o?.nx_total||0))}</td><td class="td">${(w?.hours||0)+(o?.hours||0)} ชม.</td></tr>`;
+  }).join('');
+}
+
+function bar(id,existing,labels,data,color,label,cb){
+  if(existing)existing.destroy();
+  const ctx=g(id)?.getContext('2d');
+  if(!ctx)return;
+  const c=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label,data,backgroundColor:color+'99',borderColor:color,borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8b949e',font:{size:11}},grid:{color:'rgba(139,197,68,.06)'}},y:{ticks:{color:'#8b949e',font:{size:11},callback:v=>fmtS(v)},grid:{color:'rgba(139,197,68,.06)'}}}}});
+  if(cb)cb(c);
+}
+
+async function apiFetch(action,char,params={}){
+  const qs=new URLSearchParams({action,character:char,...params}).toString();
+  const res=await fetch(`${SCRIPT_URL}?${qs}`,{redirect:'follow'});
+  const json=await res.json();
+  console.log(`[${action}][${char}]`,JSON.stringify(json).slice(0,300));
+  return json;
+}
+
+async function runDebug(){
+  const date=document.getElementById('debug-date').value||today();
+  const char=document.getElementById('debug-char').value;
+  const out=g('debug-out');
+  out.textContent='กำลังทดสอบ...\n\n';
+  out.textContent+=`📅 Date ที่ส่ง: "${date}"\n`;
+  out.textContent+=`👤 Character: "${char}"\n\n`;
+  try{
+    out.textContent+='--- GET getData ---\n';
+    const r1=await apiFetch('getData',char,{date});
+    out.textContent+=JSON.stringify(r1,null,2)+'\n\n';
+    out.textContent+='--- GET getSummary (days=7) ---\n';
+    const r2=await apiFetch('getSummary',char,{days:7});
+    out.textContent+=JSON.stringify(r2,null,2)+'\n';
+  }catch(e){out.textContent+='ERROR: '+e.message;}
+}
+
+function switchTab(name,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');g('panel-'+name).classList.add('active');
+  if(name==='dashboard')loadDash();
+  if(name==='history')loadHistory();
+  if(name==='debug'){document.getElementById('debug-date').value=today();}
+}
+
+function g(id){return document.getElementById(id);}
+function sgn(n){return n>0?'+':'';}
+function fmt(n){if(n==null||isNaN(n))return'—';return Math.round(n).toLocaleString('en-US');}
+function fmtS(n){
+  const a=Math.abs(n);
+  if(a>=1e9)return(n/1e9).toFixed(1)+'B';
+  if(a>=1e6)return(n/1e6).toFixed(1)+'M';
+  if(a>=1e3)return(n/1e3).toFixed(0)+'K';
+  return Math.round(n).toLocaleString('en-US');
+}
+function toast(msg,type='success'){
+  const c=g('toasts'),t=document.createElement('div');
+  t.className=`toast ${type}`;t.textContent=msg;c.appendChild(t);setTimeout(()=>t.remove(),3500);
+}
+
+init();
+</script>
+</body>
+</html>
